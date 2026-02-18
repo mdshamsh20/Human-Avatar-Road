@@ -100,8 +100,8 @@ class Game {
             this.score += this.speed * delta * 10;
             this.scoreElement.innerText = Math.floor(this.score);
 
-            // Increase speed over time
-            this.speed += 0.0001;
+            // Increase speed over time - Faster acceleration
+            this.speed += 0.0003;
         }
 
         this.world.render();
@@ -129,22 +129,43 @@ class World {
         dirLight.position.set(5, 10, 5);
         this.scene.add(dirLight);
 
-        // Floor Grid
-        this.gridHelper = new THREE.GridHelper(100, 100, 0x00ffff, 0x220022);
-        this.scene.add(this.gridHelper);
+        // Floor Grid - REMOVED per user request
+        // this.gridHelper = new THREE.GridHelper(100, 100, 0x00ffff, 0x220022);
+        // this.scene.add(this.gridHelper);
 
         // "Lava" / Void plane below
-        const planeGeo = new THREE.PlaneGeometry(200, 200);
-        const planeMat = new THREE.MeshBasicMaterial({ color: 0x220000 });
+        // "Lava" / Void plane below - Expanded
+        const planeGeo = new THREE.PlaneGeometry(500, 500);
+        const planeMat = new THREE.MeshBasicMaterial({ color: 0xcc3300 }); // Brighter lava base
         this.lava = new THREE.Mesh(planeGeo, planeMat);
         this.lava.rotation.x = -Math.PI / 2;
-        this.lava.position.y = -5; // Lower lava
+        this.lava.position.y = -3;
         this.scene.add(this.lava);
+
+        // Add side banks to ensure lava is visible around road
+        const bankGeo = new THREE.PlaneGeometry(50, 500);
+        const bankMat = new THREE.MeshBasicMaterial({ color: 0xaa1100 });
+
+        const leftBank = new THREE.Mesh(bankGeo, bankMat);
+        leftBank.rotation.x = -Math.PI / 2;
+        leftBank.position.set(-30, -1, 0);
+        this.scene.add(leftBank);
+
+        const rightBank = new THREE.Mesh(bankGeo, bankMat);
+        rightBank.rotation.x = -Math.PI / 2;
+        rightBank.position.set(30, -1, 0);
+        this.scene.add(rightBank);
 
         // Road
         const roadGeo = new THREE.BoxGeometry(6, 1, 200);
+        const roadTexture = this.createRoadTexture();
+        roadTexture.wrapS = THREE.RepeatWrapping;
+        roadTexture.wrapT = THREE.RepeatWrapping;
+        roadTexture.repeat.set(1, 20); // Repeat vertically
+
         const roadMat = new THREE.MeshStandardMaterial({
-            color: 0x111111,
+            map: roadTexture,
+            color: 0x888888,
             roughness: 0.8
         });
         this.road = new THREE.Mesh(roadGeo, roadMat);
@@ -162,6 +183,29 @@ class World {
         });
     }
 
+    createRoadTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const context = canvas.getContext('2d');
+
+        // Background
+        context.fillStyle = '#111111';
+        context.fillRect(0, 0, 64, 64);
+
+        // Stripes (horizontal lines on the road surface)
+        context.fillStyle = '#333333';
+        context.fillRect(0, 0, 64, 32);
+
+        // Side lines
+        context.fillStyle = '#ff0055'; // Neon-ish edge
+        context.fillRect(0, 0, 4, 64);
+        context.fillRect(60, 0, 4, 64);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+
     reset() {
         // Clear obstacles
         this.obstacles.forEach(obs => this.scene.remove(obs));
@@ -173,12 +217,17 @@ class World {
         // Scroll effect: Move items towards camera (z increases)
         const moveSpeed = speed * 10;
 
-        // Move Grid locally to fake infinite scroll
-        this.gridHelper.position.z = (this.gridHelper.position.z + moveSpeed * delta) % 1;
+        // Animate Road Texture to show speed
+        if (this.road.material.map) {
+            this.road.material.map.offset.y = (this.road.material.map.offset.y - moveSpeed * delta * 0.05) % 1;
+        }
 
-        // Spawn Obstacles
+        // Move Grid locally to fake infinite scroll - REMOVED
+        // this.gridHelper.position.z = (this.gridHelper.position.z + moveSpeed * delta) % 1;
+
+        // Spawn Obstacles - More frequent (1.5 factor instead of 2.0)
         this.spawnTimer += delta;
-        if (this.spawnTimer > 2.0 / speed) {
+        if (this.spawnTimer > 1.5 / speed) {
             this.spawnObstacle();
             this.spawnTimer = 0;
         }
@@ -187,6 +236,15 @@ class World {
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obs = this.obstacles[i];
             obs.position.z += moveSpeed * delta;
+
+            // Animate Fire (Pulse/Flicker)
+            const scale = 1 + Math.sin(Date.now() * 0.01 + obs.id) * 0.1;
+            obs.scale.set(scale, scale, scale);
+            // Flicker light if it exists (child index varies, assuming last child is light)
+            const light = obs.children.find(c => c.isPointLight);
+            if (light) {
+                light.intensity = 1 + Math.random() * 0.5;
+            }
 
             if (obs.position.z > 10) {
                 this.scene.remove(obs);
@@ -199,18 +257,18 @@ class World {
     }
 
     createParticles() {
-        const particleCount = 200;
+        const particleCount = 400; // More particles
         const geom = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
 
         for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 50; // x
+            positions[i * 3] = (Math.random() - 0.5) * 100; // x spread
             positions[i * 3 + 1] = (Math.random() * 20) - 5; // y
             positions[i * 3 + 2] = (Math.random() - 0.5) * 100; // z
         }
 
         geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
+        const mat = new THREE.PointsMaterial({ color: 0xffaa00, size: 0.2 }); // Orange/Gold
         this.particles = new THREE.Points(geom, mat);
         this.scene.add(this.particles);
     }
@@ -222,33 +280,60 @@ class World {
         }
 
         const positions = this.particles.geometry.attributes.position.array;
-        const moveSpeed = speed * 10;
+        // Rising speed
+        const riseSpeed = 5;
 
         for (let i = 0; i < positions.length; i += 3) {
-            positions[i + 2] += moveSpeed * delta; // Move towards camera
+            positions[i + 1] += riseSpeed * delta; // Move UP (y)
 
-            if (positions[i + 2] > 10) {
-                positions[i + 2] = -90; // Recycle to back
-                positions[i] = (Math.random() - 0.5) * 50; // New random X
-                positions[i + 1] = (Math.random() * 20) - 5; // New random Y
+            // Reset if too high
+            if (positions[i + 1] > 20) {
+                positions[i + 1] = -5;
+                positions[i] = (Math.random() - 0.5) * 80;
+                positions[i + 2] = (Math.random() - 0.5) * 100; // Reseed Z
             }
         }
         this.particles.geometry.attributes.position.needsUpdate = true;
     }
 
     spawnObstacle() {
-        const geo = new THREE.BoxGeometry(1, 1, 1);
-        const mat = new THREE.MeshLambertMaterial({ color: 0xff0055, emissive: 0x440022 });
-        const obstacle = new THREE.Mesh(geo, mat);
+        const group = new THREE.Group();
+
+        // Fire Cluster Material
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0xff4400,
+            emissive: 0xff2200,
+            roughness: 0
+        });
+
+        // Add 3-5 random spikes
+        const count = 3 + Math.floor(Math.random() * 3);
+        const geo = new THREE.ConeGeometry(0.5, 1.5, 3); // Spiky tetrahedron
+
+        for (let i = 0; i < count; i++) {
+            const spike = new THREE.Mesh(geo, mat);
+            // Random rotation
+            spike.rotation.x = (Math.random() - 0.5) * 1;
+            spike.rotation.z = (Math.random() - 0.5) * 1;
+            // Random small offset
+            spike.position.x = (Math.random() - 0.5) * 0.5;
+            spike.position.z = (Math.random() - 0.5) * 0.5;
+            group.add(spike);
+        }
+
+        // Add a light to it
+        const light = new THREE.PointLight(0xffaa00, 1, 5);
+        light.position.y = 0.5;
+        group.add(light);
 
         // Random lanes: -2, 0, 2
         const lanes = [-2, 0, 2];
-        obstacle.position.x = lanes[Math.floor(Math.random() * lanes.length)];
-        obstacle.position.y = 0.5; // On grid
-        obstacle.position.z = -50; // Start far away
+        group.position.x = lanes[Math.floor(Math.random() * lanes.length)];
+        group.position.y = 0.5; // On grid
+        group.position.z = -50; // Start far away
 
-        this.scene.add(obstacle);
-        this.obstacles.push(obstacle);
+        this.scene.add(group);
+        this.obstacles.push(group);
     }
 
     checkCollisions(playerMesh) {
