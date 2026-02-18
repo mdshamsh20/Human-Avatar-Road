@@ -36,6 +36,16 @@ body {
     color: #0ff;
 }
 
+#highscore-display {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    text-shadow: 0 0 10px #f0f;
+    color: #f0f;
+}
+
 .screen {
     position: absolute;
     top: 0;
@@ -50,6 +60,15 @@ body {
     text-align: center;
     pointer-events: auto;
     transition: opacity 0.3s;
+}
+
+.screen.active {
+    animation: fadeInScale 0.8s ease-out;
+}
+
+@keyframes fadeInScale {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
 .screen.hidden {
@@ -135,4 +154,25 @@ button:hover {
     border: 2px solid #0f0;
     z-index: 10;
     opacity: 0.5;
+}
+
+/* Countdown */
+#countdown {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 150px;
+    font-weight: 900;
+    color: #ff0055;
+    text-shadow: 0 0 20px #fff, 0 0 50px #ff0055;
+    z-index: 100;
+    pointer-events: none;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }

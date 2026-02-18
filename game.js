@@ -11,6 +11,13 @@ class Game {
         this.score = 0;
         this.speed = 0.5;
         this.baseSpeed = 0.5;
+        this.nextMilestone = 60; // Milestone for speed increase
+        this.highScore = localStorage.getItem('quantum_highscore') || 0;
+        const highScoreEl = document.getElementById('high-score');
+        if (highScoreEl) highScoreEl.innerText = Math.floor(this.highScore);
+        this.nextMilestone = 60; // Milestone for speed increase
+        this.highScore = localStorage.getItem('quantum_highscore') || 0;
+        document.getElementById('high-score').innerText = Math.floor(this.highScore);
 
         try {
             console.log("Initializing World...");
@@ -40,8 +47,9 @@ class Game {
                 console.log("Start button clicked");
                 document.getElementById('loading-msg').classList.remove('hidden');
                 this.input.init().then(() => {
-                    console.log("Input initialized, starting game");
-                    this.startGame();
+                    console.log("Input initialized, starting countdown");
+                    document.getElementById('start-screen').classList.add('hidden');
+                    this.startCountdown();
                 }).catch(err => {
                     console.error("Input init failed:", err);
                     alert("Camera Init Failed: " + err);
@@ -56,12 +64,38 @@ class Game {
         });
     }
 
+    startCountdown() {
+        const countEl = document.getElementById('countdown');
+        if (!countEl) {
+            this.startGame();
+            return;
+        }
+
+        countEl.classList.remove('hidden');
+        let count = 3;
+        countEl.innerText = count;
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countEl.innerText = count;
+            } else if (count === 0) {
+                countEl.innerText = "GO!";
+            } else {
+                clearInterval(interval);
+                countEl.classList.add('hidden');
+                this.startGame();
+            }
+        }, 1000);
+    }
+
     startGame() {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
         this.state = 'PLAYING';
         this.score = 0;
         this.speed = this.baseSpeed;
+        this.nextMilestone = 60;
     }
 
     resetGame() {
@@ -73,6 +107,13 @@ class Game {
     gameOver() {
         this.state = 'GAMEOVER';
         this.finalScoreElement.innerText = Math.floor(this.score);
+
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem('quantum_highscore', this.highScore);
+            document.getElementById('high-score').innerText = Math.floor(this.highScore);
+        }
+
         document.getElementById('game-over-screen').classList.remove('hidden');
     }
 
@@ -100,8 +141,17 @@ class Game {
             this.score += this.speed * delta * 10;
             this.scoreElement.innerText = Math.floor(this.score);
 
-            // Increase speed over time - Faster acceleration
-            this.speed += 0.0003;
+            // Check Progression (Every 60m)
+            if (this.score >= this.nextMilestone) {
+                this.speed += 0.15; // Speed boost
+                this.nextMilestone += 60; // Next goal
+
+                // Visual feedback
+                const msg = document.getElementById('loading-msg');
+                msg.innerText = "SPEED UP! 🔥";
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 2000);
+            }
         }
 
         this.world.render();
@@ -157,16 +207,19 @@ class World {
         this.scene.add(rightBank);
 
         // Road
+        // Road
         const roadGeo = new THREE.BoxGeometry(6, 1, 200);
         const roadTexture = this.createRoadTexture();
         roadTexture.wrapS = THREE.RepeatWrapping;
         roadTexture.wrapT = THREE.RepeatWrapping;
-        roadTexture.repeat.set(1, 20); // Repeat vertically
+        roadTexture.repeat.set(1, 10); // Repeat vertically (less repeats = bigger stones)
+        roadTexture.anisotropy = 16; // Sharper texture at angles
 
         const roadMat = new THREE.MeshStandardMaterial({
             map: roadTexture,
-            color: 0x888888,
-            roughness: 0.8
+            color: 0xaaaaaa,
+            roughness: 1,
+            metalness: 0
         });
         this.road = new THREE.Mesh(roadGeo, roadMat);
         this.road.position.set(0, -0.5, 0); // Top surface at y=0
@@ -175,6 +228,8 @@ class World {
         // Obstacles
         this.obstacles = [];
         this.spawnTimer = 0;
+        this.spawnFactor = 1.0; // Starting difficulty (lower is harder)
+
 
         window.addEventListener('resize', () => {
             this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -184,26 +239,59 @@ class World {
     }
 
     createRoadTexture() {
+        const size = 512;
         const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
+        canvas.width = size;
+        canvas.height = size;
         const context = canvas.getContext('2d');
 
-        // Background
-        context.fillStyle = '#111111';
-        context.fillRect(0, 0, 64, 64);
+        // Background (Mortar)
+        context.fillStyle = '#3a3a3a';
+        context.fillRect(0, 0, size, size);
 
-        // Stripes (horizontal lines on the road surface)
-        context.fillStyle = '#333333';
-        context.fillRect(0, 0, 64, 32);
+        // Stones
+        const rows = 8;
+        const cols = 4;
+        const stoneWidth = size / cols;
+        const stoneHeight = size / rows;
 
-        // Side lines
-        context.fillStyle = '#ff0055'; // Neon-ish edge
-        context.fillRect(0, 0, 4, 64);
-        context.fillRect(60, 0, 4, 64);
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                // Randomize variation
+                const x = j * stoneWidth;
+                const y = i * stoneHeight;
+                const w = stoneWidth * 0.9;
+                const h = stoneHeight * 0.9;
+
+                // Offset every other row
+                const offset = (i % 2 === 0) ? 0 : stoneWidth / 2;
+
+                // Color variation
+                const shade = 100 + Math.random() * 50;
+                context.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+
+                // Draw rounded rect (stone)
+                this.roundRect(context, x + offset + (stoneWidth - w) / 2, y + (stoneHeight - h) / 2, w, h, 10);
+                context.fill();
+            }
+        }
 
         const texture = new THREE.CanvasTexture(canvas);
         return texture;
+    }
+
+    roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
     }
 
     reset() {
@@ -219,15 +307,19 @@ class World {
 
         // Animate Road Texture to show speed
         if (this.road.material.map) {
-            this.road.material.map.offset.y = (this.road.material.map.offset.y - moveSpeed * delta * 0.05) % 1;
+            // Reversed direction: Add to offset to move texture "down/towards camera"
+            this.road.material.map.offset.y = (this.road.material.map.offset.y + moveSpeed * delta * 0.05) % 1;
         }
 
         // Move Grid locally to fake infinite scroll - REMOVED
         // this.gridHelper.position.z = (this.gridHelper.position.z + moveSpeed * delta) % 1;
 
-        // Spawn Obstacles - More frequent (1.5 factor instead of 2.0)
+        // Spawn Obstacles - Dynamic
         this.spawnTimer += delta;
-        if (this.spawnTimer > 1.5 / speed) {
+
+        // As speed increases, we spawn faster naturally (constant / speed).
+        // We also lower the constant (spawnFactor) to make it even DENSEr.
+        if (this.spawnTimer > this.spawnFactor / speed) {
             this.spawnObstacle();
             this.spawnTimer = 0;
         }
