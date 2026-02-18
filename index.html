@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quantum Grid Runner</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
     <!-- Import Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Import ml5.js -->
@@ -19,6 +21,7 @@
     <!-- UI Overlay -->
     <div id="ui-layer">
         <div id="score-display">DISTANCE: <span id="score">0</span>m</div>
+        <div id="highscore-display">RECORD: <span id="high-score">0</span>m</div>
 
         <div id="start-screen" class="screen active">
             <h1>QUANTUM<br>GRID RUNNER</h1>
@@ -34,6 +37,8 @@
             <p>Distance Traveled: <span id="final-score">0</span>m</p>
             <button id="restart-btn">REBOOT</button>
         </div>
+
+        <div id="countdown" class="hidden">3</div>
     </div>
 
     <!-- Hidden video element for ml5.js -->
