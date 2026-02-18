@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Grid Runner</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Import Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Import ml5.js -->
+    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <div id="score-display">DISTANCE: <span id="score">0</span>m</div>
+
+        <div id="start-screen" class="screen active">
+            <h1>QUANTUM<br>GRID RUNNER</h1>
+            <p>Stand back and allow camera access.</p>
+            <p>Move LEFT/RIGHT to dodge.</p>
+            <p>JUMP or Raise Arms to jump.</p>
+            <button id="start-btn">INITIALIZE SYSTEM</button>
+            <div id="loading-msg" class="hidden">Calibrating Neural Link...</div>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden">
+            <h1>SYSTEM FAILURE</h1>
+            <p>Distance Traveled: <span id="final-score">0</span>m</p>
+            <button id="restart-btn">REBOOT</button>
+        </div>
+    </div>
+
+    <!-- Hidden video element for ml5.js -->
+    <video id="video" width="640" height="480" autoplay style="display: none;"></video>
+
+    <script src="game.js"></script>
+</body>
+
+</html>
